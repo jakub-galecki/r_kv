@@ -1,7 +1,10 @@
-use std::error::Error;
 use env_logger::Env;
-use tokio::net::TcpListener;
+use r_kv::database::Db;
 use r_kv::handler::process;
+use std::error::Error;
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -10,14 +13,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let addr = "127.0.0.1:8080".to_string();
     let listener = TcpListener::bind(&addr).await?;
-    log::info!("Listening on address: {}\n", addr);
+    log::debug!("Listening on address: {}\n", addr);
+    let db = Arc::new(Mutex::new(Db::new()));
 
     loop {
         let (socket, _) = listener.accept().await?;
-        log::info!("Received new message");
+        log::debug!("Received new message");
+        let d = db.clone();
 
         tokio::spawn(async move {
-            process(socket).await;
+            let _ = process(d, socket).await;
         });
     }
 }
